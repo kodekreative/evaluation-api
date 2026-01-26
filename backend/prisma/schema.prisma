@@ -13,6 +13,18 @@ enum Role {
   ADMIN
 }
 
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  INACTIVE
+}
+
+enum ProjectMemberRole {
+  OWNER
+  LEAD
+  MEMBER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -21,6 +33,56 @@ model User {
   lastName     String?
   role         Role     @default(USER)
 
+  // Projects owned by this user
+  ownedProjects Project[] @relation("ProjectOwner")
+  
+  // Projects this user is a member of
+  projectMemberships ProjectMember[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(255)
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+
+  // Owner reference are 1-to-many relationship
+  ownerId     String
+  owner       User     @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Team members are many-to-many relationship
+  members     ProjectMember[]
+
+  // Composite unique key: project name is unique per owner
+  @@unique([ownerId, name])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([ownerId])
+  @@index([status])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role      ProjectMemberRole @default(MEMBER)
+  
+  // Composite unique key: a user can only be a member once per project not more
+  @@unique([projectId, userId])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([projectId])
+  @@index([userId])
 }
